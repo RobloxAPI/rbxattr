@@ -99,9 +99,6 @@ A value of of `0` is decoded to `false`, while any other value is decoded to
 |-----------------------|
 | <code>float:32</code> |
 
-Roblox encodes a number as this type if all of the four most significant bytes
-are zero.
-
 ### Double
 [Double]: #user-content-double
 
@@ -112,9 +109,6 @@ are zero.
 | Type                  |
 |-----------------------|
 | <code>float:64</code> |
-
-Roblox encodes a number as this type if any of the four most significant bytes
-are non-zero.
 
 ### Dictionary
 [Dictionary]: #user-content-dictionary
