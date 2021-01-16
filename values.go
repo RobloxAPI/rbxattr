@@ -48,7 +48,8 @@ const (
 	_                  Type = 0x20 // Region3int16
 )
 
-// Value is an attribute value that can be decoded from and encoded to bytes.
+// Value is an attribute value that can be decoded from and encoded to bytes,
+// with an identifying type.
 type Value interface {
 	Type() Type
 	ReadFrom(r io.Reader) (n int64, err error)

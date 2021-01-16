@@ -1,3 +1,5 @@
+// The rbxattr package implements the serialized format of Roblox's instance
+// attributes.
 package rbxattr
 
 import (
