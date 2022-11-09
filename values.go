@@ -3,6 +3,7 @@ package rbxattr
 import (
 	"fmt"
 	"io"
+	"math"
 )
 
 // Type identifies an attribute type within an encoding.
@@ -510,9 +511,70 @@ func (v ValueVector3) WriteTo(w io.Writer) (n int64, err error) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+var _0 = float32(math.Copysign(0, -1))
+
+var cfIdentity = [9]float32{
+	1, 0, 0,
+	0, 1, 0,
+	0, 0, 1,
+}
+
+var cframeIDMatrix = map[uint8][9]float32{
+	0x02: {+1, +0, +0, +0, +1, +0, +0, +0, +1},
+	0x03: {+1, +0, +0, +0, +0, -1, +0, +1, +0},
+	0x05: {+1, +0, +0, +0, -1, +0, +0, +0, -1},
+	0x06: {+1, +0, _0, +0, +0, +1, +0, -1, +0},
+	0x07: {+0, +1, +0, +1, +0, +0, +0, +0, -1},
+	0x09: {+0, +0, +1, +1, +0, +0, +0, +1, +0},
+	0x0A: {+0, -1, +0, +1, +0, _0, +0, +0, +1},
+	0x0C: {+0, +0, -1, +1, +0, +0, +0, -1, +0},
+	0x0D: {+0, +1, +0, +0, +0, +1, +1, +0, +0},
+	0x0E: {+0, +0, -1, +0, +1, +0, +1, +0, +0},
+	0x10: {+0, -1, +0, +0, +0, -1, +1, +0, +0},
+	0x11: {+0, +0, +1, +0, -1, +0, +1, +0, _0},
+	0x14: {-1, +0, +0, +0, +1, +0, +0, +0, -1},
+	0x15: {-1, +0, +0, +0, +0, +1, +0, +1, _0},
+	0x17: {-1, +0, +0, +0, -1, +0, +0, +0, +1},
+	0x18: {-1, +0, _0, +0, +0, -1, +0, -1, _0},
+	0x19: {+0, +1, _0, -1, +0, +0, +0, +0, +1},
+	0x1B: {+0, +0, -1, -1, +0, +0, +0, +1, +0},
+	0x1C: {+0, -1, _0, -1, +0, _0, +0, +0, -1},
+	0x1E: {+0, +0, +1, -1, +0, +0, +0, -1, +0},
+	0x1F: {+0, +1, +0, +0, +0, -1, -1, +0, +0},
+	0x20: {+0, +0, +1, +0, +1, _0, -1, +0, +0},
+	0x22: {+0, -1, +0, +0, +0, +1, -1, +0, +0},
+	0x23: {+0, +0, -1, +0, -1, _0, -1, +0, _0},
+}
+
+var cframeIDNumber = map[[9]float32]uint8{
+	cframeIDMatrix[0x02]: 0x02,
+	cframeIDMatrix[0x03]: 0x03,
+	cframeIDMatrix[0x05]: 0x05,
+	cframeIDMatrix[0x06]: 0x06,
+	cframeIDMatrix[0x07]: 0x07,
+	cframeIDMatrix[0x09]: 0x09,
+	cframeIDMatrix[0x0A]: 0x0A,
+	cframeIDMatrix[0x0C]: 0x0C,
+	cframeIDMatrix[0x0D]: 0x0D,
+	cframeIDMatrix[0x0E]: 0x0E,
+	cframeIDMatrix[0x10]: 0x10,
+	cframeIDMatrix[0x11]: 0x11,
+	cframeIDMatrix[0x14]: 0x14,
+	cframeIDMatrix[0x15]: 0x15,
+	cframeIDMatrix[0x17]: 0x17,
+	cframeIDMatrix[0x18]: 0x18,
+	cframeIDMatrix[0x19]: 0x19,
+	cframeIDMatrix[0x1B]: 0x1B,
+	cframeIDMatrix[0x1C]: 0x1C,
+	cframeIDMatrix[0x1E]: 0x1E,
+	cframeIDMatrix[0x1F]: 0x1F,
+	cframeIDMatrix[0x20]: 0x20,
+	cframeIDMatrix[0x22]: 0x22,
+	cframeIDMatrix[0x23]: 0x23,
+}
+
 type ValueCFrame struct {
 	Position ValueVector3
-	ID       uint8
 	Rotation [9]float32
 }
 
@@ -526,15 +588,20 @@ func (v *ValueCFrame) ReadFrom(r io.Reader) (n int64, err error) {
 	if br.Add(a.Position.ReadFrom(r)) {
 		return br.N(), fmt.Errorf("CFrame.Position: %w", br.Err())
 	}
-	if br.Number(&a.ID) {
+	var id uint8
+	if br.Number(&id) {
 		return br.N(), fmt.Errorf("CFrame.ID: %w", br.Err())
 	}
-	if a.ID == 0 {
+	if id == 0 {
 		for i := 0; i < 9; i++ {
 			if br.Number(&a.Rotation[i]) {
 				return br.N(), fmt.Errorf("CFrame.Rotation[%d]: %w", i, br.Err())
 			}
 		}
+	} else if r, ok := cframeIDMatrix[id]; ok {
+		a.Rotation = r
+	} else {
+		a.Rotation = cfIdentity
 	}
 	*v = a
 	return br.End()
@@ -545,10 +612,11 @@ func (v ValueCFrame) WriteTo(w io.Writer) (n int64, err error) {
 	if bw.Add(v.Position.WriteTo(w)) {
 		return bw.N(), fmt.Errorf("CFrame.Position: %w", bw.Err())
 	}
-	if bw.Number(v.ID) {
+	id := cframeIDNumber[v.Rotation]
+	if bw.Number(id) {
 		return bw.N(), fmt.Errorf("CFrame.ID: %w", bw.Err())
 	}
-	if v.ID == 0 {
+	if id == 0 {
 		for i := 0; i < 9; i++ {
 			if bw.Number(v.Rotation[i]) {
 				return bw.N(), fmt.Errorf("CFrame.Rotation[%d]: %w", i, bw.Err())
