@@ -33,7 +33,7 @@ const (
 	TypeVector3        Type = 0x11
 	_                  Type = 0x12 // Vector2int16
 	_                  Type = 0x13 // Vector3int16
-	_                  Type = 0x14 // CFrame
+	TypeCFrame         Type = 0x14
 	_                  Type = 0x15 // EnumItem
 	_                  Type = 0x16 // Unknown
 	TypeNumberSequence Type = 0x17
@@ -80,6 +80,8 @@ func NewValue(typ Type) Value {
 		return new(ValueVector2)
 	case TypeVector3:
 		return new(ValueVector3)
+	case TypeCFrame:
+		return new(ValueCFrame)
 	case TypeNumberSequence:
 		return new(ValueNumberSequence)
 	case TypeColorSequence:
@@ -508,7 +510,53 @@ func (v ValueVector3) WriteTo(w io.Writer) (n int64, err error) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// type ValueCFrame struct{}
+type ValueCFrame struct {
+	Position ValueVector3
+	ID       uint8
+	Rotation [9]float32
+}
+
+func (ValueCFrame) Type() Type {
+	return TypeCFrame
+}
+
+func (v *ValueCFrame) ReadFrom(r io.Reader) (n int64, err error) {
+	br := newBinaryReader(r)
+	var a ValueCFrame
+	if br.Add(a.Position.ReadFrom(r)) {
+		return br.N(), fmt.Errorf("CFrame.Position: %w", br.Err())
+	}
+	if br.Number(&a.ID) {
+		return br.N(), fmt.Errorf("CFrame.ID: %w", br.Err())
+	}
+	if a.ID == 0 {
+		for i := 0; i < 9; i++ {
+			if br.Number(&a.Rotation[i]) {
+				return br.N(), fmt.Errorf("CFrame.Rotation[%d]: %w", i, br.Err())
+			}
+		}
+	}
+	*v = a
+	return br.End()
+}
+
+func (v ValueCFrame) WriteTo(w io.Writer) (n int64, err error) {
+	bw := newBinaryWriter(w)
+	if bw.Add(v.Position.WriteTo(w)) {
+		return bw.N(), fmt.Errorf("CFrame.Position: %w", bw.Err())
+	}
+	if bw.Number(v.ID) {
+		return bw.N(), fmt.Errorf("CFrame.ID: %w", bw.Err())
+	}
+	if v.ID == 0 {
+		for i := 0; i < 9; i++ {
+			if bw.Number(v.Rotation[i]) {
+				return bw.N(), fmt.Errorf("CFrame.Rotation[%d]: %w", i, bw.Err())
+			}
+		}
+	}
+	return bw.End()
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
